@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/SjekkBilen/static/css/main.6d5c64c2.css",
+    "main.js": "/SjekkBilen/static/js/main.a7058b19.js",
+    "index.html": "/SjekkBilen/index.html",
+    "main.6d5c64c2.css.map": "/SjekkBilen/static/css/main.6d5c64c2.css.map",
+    "main.a7058b19.js.map": "/SjekkBilen/static/js/main.a7058b19.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.6d5c64c2.css",
+    "static/js/main.a7058b19.js"
+  ]
+}
