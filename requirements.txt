@@ -1,0 +1,10 @@
+matplotlib
+pandas
+requests
+beautifulsoup4
+numpy
+scikit-learn
+json5
+fastapi
+sqlalchemy
+uvicorn

@@ -1,0 +1,60 @@
+# Python
+venv/
+env/
+.env
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Node/React
+reactapp/node_modules/
+reactapp/.pnp
+reactapp/.pnp.js
+reactapp/coverage/
+reactapp/build/
+reactapp/.env.local
+reactapp/.env.development.local
+reactapp/.env.test.local
+reactapp/.env.production.local
+reactapp/npm-debug.log*
+reactapp/yarn-debug.log*
+reactapp/yarn-error.log*
+
+# IDEs and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Database
+*.sqlite3
+*.db
+
+# JSON data files (if you want to exclude them)
+# *.json
+
+# Logs
+logs/
+*.log 
