@@ -1,6 +1,8 @@
 import requests
 from bs4 import BeautifulSoup
 import time
+import json
+import random
 
 def get_listing_links_on_page(page_url: str) -> list[str]:
     """
@@ -8,6 +10,7 @@ def get_listing_links_on_page(page_url: str) -> list[str]:
     found in <article class="sf-search-ad"> elements.
     """
     print(f"Fetching summary page: {page_url}")
+    time.sleep(random.uniform(0, 2))  # Random sleep between 0-2 seconds
     response = requests.get(page_url)
     response.raise_for_status()
     
@@ -20,6 +23,7 @@ def get_listing_links_on_page(page_url: str) -> list[str]:
     
     for article in articles:
         # Each listing anchor typically is something like:
+        
         # <h2 class="..."><a class="sf-search-ad-link" href="..."></a></h2>
         link_tag = article.select_one("h2 a.sf-search-ad-link")
         if link_tag and link_tag.has_attr("href"):
@@ -33,10 +37,6 @@ def get_listing_links_on_page(page_url: str) -> list[str]:
 def scrape_all_pages(base_url: str, query: str, sleep_sec=1) -> list[str]:
     """
     Iterates through all pages for the given query until no more results are found.
-    base_url: e.g. "https://www.finn.no/mobility/search/car"
-    query: e.g. "skoda+superb"
-    
-    Returns a combined list of all listing links.
     """
     all_links = []
     page = 1
@@ -65,16 +65,35 @@ def scrape_all_pages(base_url: str, query: str, sleep_sec=1) -> list[str]:
     
     return all_links
 
+def read_models(filename: str) -> list[str]:
+    """
+    Read car models from the specified file.
+    """
+    with open(filename, 'r', encoding='utf-8') as f:
+        return [line.strip() for line in f if line.strip()]
+
 def main():
-    # Example usage:
     base_url = "https://www.finn.no/mobility/search/car"
-    query = "kia+sportage"
+    all_listing_links = set()  # Using set to avoid duplicates
     
-    all_listing_links = scrape_all_pages(base_url, query, sleep_sec=1)
+    # Read models from file
+    models = read_models('car_models.txt')
+    print(f"Found {len(models)} models to search for")
     
-    print(f"\nDone! Found a total of {len(all_listing_links)} listing links.")
-    for link in all_listing_links:
-        print(link)
+    # Scrape each model
+    for model in models:
+        print(f"\nSearching for: {model}")
+        query = model.replace(" ", "+")
+        model_links = scrape_all_pages(base_url, query, sleep_sec=1)
+        all_listing_links.update(model_links)
+        print(f"Total unique listings so far: {len(all_listing_links)}")
+        time.sleep(2)  # Extra pause between models
+    
+    # Save all links to JSON file
+    with open('finn_links.json', 'w', encoding='utf-8') as f:
+        json.dump(list(all_listing_links), f, indent=2, ensure_ascii=False)
+    
+    print(f"\nDone! Found a total of {len(all_listing_links)} unique listing links.")
 
 if __name__ == "__main__":
     main()

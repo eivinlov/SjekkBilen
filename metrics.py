@@ -30,6 +30,8 @@ def store_metrics_data(listings: list, metrics_results: list) -> None:
         enriched_listing = {
             "url": listing["url"],
             "data": listing["data"],
+            "last_checked": listing["last_checked"],
+            "status": listing["status"],
             "metrics": metrics
         }
         enriched_data.append(enriched_listing)
@@ -52,14 +54,6 @@ def clean_numeric(value: str) -> int:
     """
     digits = re.sub(r"[^\d]", "", value)  # keep only 0-9
     return int(digits) if digits else 0
-
-def compute_price_per_10k(price: int, mileage: int) -> float:
-    """
-    Returns (price / mileage) * 10000 if mileage > 0, otherwise 9999999.0
-    """
-    if mileage == 0:
-        return 9999999.0  # fallback if mileage is zero or not found
-    return (price / mileage) * 10000
 
 def compute_price_per_10k(price: int, mileage: int) -> float:
     """

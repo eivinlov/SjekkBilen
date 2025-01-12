@@ -3,6 +3,9 @@ import './App.css';
 import DepreciationChart from './components/DepreciationChart';
 import PriceChart from './components/PriceChart';
 import MarketChart from './components/MarketChart';
+import MultifactorScoreChart from './components/MultifactorScoreChart';
+import ResaleCalculator from './components/ResaleCalculator';
+import PricePerYearChart from './components/PricePerYearChart';
 
 function App() {
   const [activeTab, setActiveTab] = useState('depreciation');
@@ -10,7 +13,10 @@ function App() {
   const tabs = [
     { id: 'depreciation', label: 'Verditap' },
     { id: 'price', label: 'Prisutvikling' },
-    { id: 'market', label: 'Markedsanalyse' }
+    { id: 'market', label: 'Markedsanalyse' },
+    { id: 'multifactor', label: 'Multifaktorscore' },
+    { id: 'resale', label: 'Verdikalkulator' },
+    { id: 'price-per-year', label: 'Pris per km' }
   ];
 
   return (
@@ -35,6 +41,9 @@ function App() {
         {activeTab === 'depreciation' && <DepreciationChart />}
         {activeTab === 'price' && <PriceChart />}
         {activeTab === 'market' && <MarketChart />}
+        {activeTab === 'multifactor' && <MultifactorScoreChart />}
+        {activeTab === 'resale' && <ResaleCalculator />}
+        {activeTab === 'price-per-year' && <PricePerYearChart />}
       </div>
     </div>
   );

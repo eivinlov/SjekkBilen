@@ -56,7 +56,7 @@ function DepreciationChart() {
   const [allListings, setAllListings] = useState([]);
 
   useEffect(() => {
-    fetch('/finn_listings_with_metrics.json')
+    fetch(`${process.env.PUBLIC_URL}/finn_listings_with_metrics.json`)
       .then(response => response.json())
       .then(rawData => {
         const listings = rawData.listings || [];
