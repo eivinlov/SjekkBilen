@@ -9,9 +9,11 @@ import {
   Tooltip,
   Legend
 } from 'chart.js';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import Grid2 from '@mui/material/Grid2';
 import { Select, MenuItem, Typography, Box, TextField } from '@mui/material';
+import { useFilters } from '../contexts/FilterContext';
+import { FilterPanel } from './FilterPanel';
 
 ChartJS.register(
   CategoryScale,
@@ -25,98 +27,81 @@ ChartJS.register(
 
 function PricePerYearChart() {
   const [chartData, setChartData] = useState(null);
-  const [selectedMetric, setSelectedMetric] = useState('price_per_10k');
-  const [filters, setFilters] = useState({
-    model: 'all',
-    minMileage: '',
-    maxMileage: '',
-    fuelType: 'all',
-    drivetrain: 'all'
-  });
-  const [filterOptions, setFilterOptions] = useState({
-    models: [],
-    fuelTypes: [],
-    drivetrains: []
-  });
   const [listings, setListings] = useState(null);
+  const [selectedMetric, setSelectedMetric] = useState('price_per_10k');
+  const { 
+    primaryFilters, 
+    setFilterOptions 
+  } = useFilters();
 
   useEffect(() => {
     fetch(`${process.env.PUBLIC_URL}/finn_listings_with_metrics.json`)
       .then(response => response.json())
       .then(rawData => {
-        const allListings = rawData.listings || [];
-        console.log('Number of listings:', allListings.length);
-        
-        // Validate listings like in PriceChart
-        const validListings = allListings.filter(car => {
-          return car && 
-                 car.data && 
-                 car.data['Kilometerstand'] && 
-                 car.data['Pris eksl. omreg.'] && 
-                 car.data['Modellår'] && 
-                 car.data['Merke'] && 
-                 car.data['Modell'] &&
-                 car.metrics['metrics']['price_per_10k'];  // Additional check specific to this chart
-        });
-        
-        console.log('Valid listings:', validListings.length);
-        setListings(validListings);
-        
-        // Extract unique values for filters from valid listings only
-        const models = [...new Set(validListings.map(car => car.data['Modell']).filter(Boolean))];
-        const fuelTypes = [...new Set(validListings.map(car => car.data['Drivstoff']).filter(Boolean))];
-        const drivetrains = [...new Set(validListings.map(car => car.data['Hjuldrift']).filter(Boolean))];
-        
+        setListings(rawData.listings || []);
+
+        // Extract unique values for filters
+        const models = [...new Set(rawData.listings.map(car => car.data['Modell']).filter(Boolean))];
+        const modelYears = [...new Set(rawData.listings.map(car => car.data['Modellår']).filter(Boolean))];
+        const fuelTypes = [...new Set(rawData.listings.map(car => car.data['Drivstoff']).filter(Boolean))];
+        const drivetrains = [...new Set(rawData.listings.map(car => car.data['Hjuldrift']).filter(Boolean))];
+
         setFilterOptions({
           models: models.sort(),
+          modelYears: modelYears.sort(),
           fuelTypes: fuelTypes.sort(),
           drivetrains: drivetrains.sort()
         });
-      })
-      .catch(error => {
-        console.error('Error loading data:', error);
       });
-  }, []);
+  }, [setFilterOptions]);
 
   useEffect(() => {
     if (listings) {
-      updateChart(listings, filters);
+      const filteredListings = listings.filter(car => {
+        return (primaryFilters.model === 'all' || car.data['Modell'] === primaryFilters.model) &&
+               (primaryFilters.modelYear === 'all' || car.data['Modellår'] === primaryFilters.modelYear) &&
+               (primaryFilters.fuelType === 'all' || car.data['Drivstoff'] === primaryFilters.fuelType) &&
+               (primaryFilters.drivetrain === 'all' || car.data['Hjuldrift'] === primaryFilters.drivetrain) &&
+               (!primaryFilters.showOnlySold || car.status === 'SOLGT');
+      });
+
+      updateChart(filteredListings);
     }
-  }, [listings, filters.model, filters.minMileage, filters.maxMileage, filters.fuelType, filters.drivetrain, selectedMetric]);
+  }, [listings, primaryFilters, selectedMetric]);
 
   const calculateValueScore = (price, kilometers) => {
     return (1 / price) * (1 / kilometers) * 1_000_000_000;
   };
 
-  const updateChart = (listings, currentFilters) => {
-    const filteredListings = listings.filter(listing => {
-      if (!listing?.data || !listing?.metrics?.metrics?.price_per_10k) return false;
-      
-      const mileage = parseInt(listing.data['Kilometerstand']?.replace(/[^0-9]/g, '') || '0');
-      
-      return (
-        (currentFilters.model === 'all' || listing.data['Modell'] === currentFilters.model) &&
-        (currentFilters.fuelType === 'all' || listing.data['Drivstoff'] === currentFilters.fuelType) &&
-        (currentFilters.drivetrain === 'all' || listing.data['Hjuldrift'] === currentFilters.drivetrain) &&
-        (!currentFilters.minMileage || mileage >= parseInt(currentFilters.minMileage)) &&
-        (!currentFilters.maxMileage || mileage <= parseInt(currentFilters.maxMileage))
-      );
-    });
+  const updateChart = useCallback((listings) => {
+    const validListings = listings.filter(listing => 
+      listing?.data?.['Pris eksl. omreg.'] &&
+      listing?.data?.['Kilometerstand'] &&
+      listing?.data?.['Modellår'] &&
+      listing?.data?.['Merke'] &&
+      listing?.data?.['Modell'] &&
+      listing?.metrics?.metrics?.price_per_10k
+    );
 
-    const dataPoints = filteredListings.map(listing => {
-      const price = parseInt(listing.data['Pris eksl. omreg.'].replace(/[^0-9]/g, ''));
-      const kilometers = parseInt(listing.data['Kilometerstand'].replace(/[^0-9]/g, ''));
-      const valueScore = calculateValueScore(price, kilometers);
+    const dataPoints = validListings.map(listing => {
+      try {
+        const price = parseInt(listing.data['Pris eksl. omreg.'].replace(/[^0-9]/g, ''));
+        const kilometers = parseInt(listing.data['Kilometerstand'].replace(/[^0-9]/g, ''));
+        const valueScore = calculateValueScore(price, kilometers);
 
-      return {
-        x: parseInt(listing.data['Modellår']),
-        y: selectedMetric === 'price_per_10k' ? listing.metrics.metrics.price_per_10k : valueScore,
-        url: listing.url,
-        title: `${listing.data['Modellår']} ${listing.data['Merke']} ${listing.data['Modell']}`,
-        km: kilometers.toLocaleString(),
-        price: price.toLocaleString()
-      };
-    });
+        return {
+          x: parseInt(listing.data['Modellår']),
+          y: selectedMetric === 'price_per_10k' ? listing.metrics.metrics.price_per_10k : valueScore,
+          url: listing.url,
+          title: `${listing.data['Modellår']} ${listing.data['Merke']} ${listing.data['Modell']}`,
+          km: kilometers.toLocaleString(),
+          price: price.toLocaleString()
+        };
+      } catch (error) {
+        console.warn('Error processing listing:', error);
+        return null;
+      }
+    }).filter(Boolean); // Remove any null entries from failed processing
 
     dataPoints.sort((a, b) => a.x - b.x);
 
@@ -130,15 +115,7 @@ function PricePerYearChart() {
         showLine: false
       }]
     });
-  };
-
-  const handleFilterChange = (filterName) => (event) => {
-    const newFilters = {
-      ...filters,
-      [filterName]: event.target.value
-    };
-    setFilters(newFilters);
-  };
+  }, [selectedMetric, calculateValueScore]);
 
   const options = {
     responsive: true,
@@ -198,6 +175,7 @@ function PricePerYearChart() {
 
   return (
     <div>
+      <FilterPanel />
       <Box sx={{ mb: 3 }}>
         <Grid2 container spacing={2}>
           <Grid2 xs={12} sm={6} md={3}>
@@ -214,88 +192,8 @@ function PricePerYearChart() {
               <MenuItem value="value_score">Verdi score</MenuItem>
             </Select>
           </Grid2>
-          
-          <Grid2 xs={12} sm={6} md={3}>
-            <Typography variant="subtitle2" gutterBottom>
-              Modell
-            </Typography>
-            <Select
-              fullWidth
-              value={filters.model}
-              onChange={handleFilterChange('model')}
-              size="small"
-            >
-              <MenuItem value="all">Alle modeller</MenuItem>
-              {filterOptions.models.map(model => (
-                <MenuItem key={model} value={model}>{model}</MenuItem>
-              ))}
-            </Select>
-          </Grid2>
-          
-          <Grid2 xs={12} sm={6} md={3}>
-            <Typography variant="subtitle2" gutterBottom>
-              Drivstoff
-            </Typography>
-            <Select
-              fullWidth
-              value={filters.fuelType}
-              onChange={handleFilterChange('fuelType')}
-              size="small"
-            >
-              <MenuItem value="all">Alle typer</MenuItem>
-              {filterOptions.fuelTypes.map(type => (
-                <MenuItem key={type} value={type}>{type}</MenuItem>
-              ))}
-            </Select>
-          </Grid2>
-          
-          <Grid2 xs={12} sm={6} md={3}>
-            <Typography variant="subtitle2" gutterBottom>
-              Hjuldrift
-            </Typography>
-            <Select
-              fullWidth
-              value={filters.drivetrain}
-              onChange={handleFilterChange('drivetrain')}
-              size="small"
-            >
-              <MenuItem value="all">Alle typer</MenuItem>
-              {filterOptions.drivetrains.map(type => (
-                <MenuItem key={type} value={type}>{type}</MenuItem>
-              ))}
-            </Select>
-          </Grid2>
-          
-          <Grid2 xs={12} sm={6} md={3}>
-            <Typography variant="subtitle2" gutterBottom>
-              Kilometerstand
-            </Typography>
-            <Grid2 container spacing={1}>
-              <Grid2 xs={6}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="Min"
-                  value={filters.minMileage}
-                  onChange={handleFilterChange('minMileage')}
-                  type="number"
-                />
-              </Grid2>
-              <Grid2 xs={6}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="Max"
-                  value={filters.maxMileage}
-                  onChange={handleFilterChange('maxMileage')}
-                  type="number"
-                />
-              </Grid2>
-            </Grid2>
-          </Grid2>
         </Grid2>
       </Box>
-      
       <Line options={options} data={chartData} />
     </div>
   );

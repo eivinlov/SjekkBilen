@@ -9,17 +9,24 @@ import {
 } from 'chart.js';
 import { useEffect, useState, useCallback } from 'react';
 import { Grid, Slider, Typography, Box } from '@mui/material';
+import { useFilters } from '../contexts/FilterContext';
+import { FilterPanel } from './FilterPanel';
 
 ChartJS.register(LinearScale, PointElement, LineElement, Tooltip, Legend);
 
 function MultifactorScoreChart() {
   const [chartData, setChartData] = useState(null);
+  const [listings, setListings] = useState(null);
   const [weights, setWeights] = useState({
     price_per_10k: 1,
     age: 1,
     mileage: 1,
     power: 1
   });
+  const { 
+    primaryFilters, 
+    setFilterOptions 
+  } = useFilters();
 
   const calculateScore = useCallback((car, weights) => {
     const price = parseInt(car.data['Pris eksl. omreg.'].replace(/[^0-9]/g, ''));
@@ -68,9 +75,36 @@ function MultifactorScoreChart() {
     fetch(`${process.env.PUBLIC_URL}/finn_listings_with_metrics.json`)
       .then(response => response.json())
       .then(rawData => {
-        updateChart(rawData.listings || [], weights);
+        setListings(rawData.listings || []);
+
+        // Extract unique values for filters
+        const models = [...new Set(rawData.listings.map(car => car.data['Modell']).filter(Boolean))];
+        const modelYears = [...new Set(rawData.listings.map(car => car.data['Modellår']).filter(Boolean))];
+        const fuelTypes = [...new Set(rawData.listings.map(car => car.data['Drivstoff']).filter(Boolean))];
+        const drivetrains = [...new Set(rawData.listings.map(car => car.data['Hjuldrift']).filter(Boolean))];
+
+        setFilterOptions({
+          models: models.sort(),
+          modelYears: modelYears.sort(),
+          fuelTypes: fuelTypes.sort(),
+          drivetrains: drivetrains.sort()
+        });
       });
-  }, [weights, updateChart]);
+  }, [setFilterOptions]);
+
+  useEffect(() => {
+    if (listings) {
+      const filteredListings = listings.filter(car => {
+        return (primaryFilters.model === 'all' || car.data['Modell'] === primaryFilters.model) &&
+               (primaryFilters.modelYear === 'all' || car.data['Modellår'] === primaryFilters.modelYear) &&
+               (primaryFilters.fuelType === 'all' || car.data['Drivstoff'] === primaryFilters.fuelType) &&
+               (primaryFilters.drivetrain === 'all' || car.data['Hjuldrift'] === primaryFilters.drivetrain) &&
+               (!primaryFilters.showOnlySold || car.status === 'SOLGT');
+      });
+
+      updateChart(filteredListings, weights);
+    }
+  }, [listings, primaryFilters, weights, updateChart]);
 
   const handleWeightChange = (name) => (event, value) => {
     setWeights(prev => ({
@@ -134,6 +168,7 @@ function MultifactorScoreChart() {
 
   return (
     <div>
+      <FilterPanel />
       <Box sx={{ width: '100%', mb: 2 }}>
         <Grid container spacing={2}>
           <Grid item xs={6}>

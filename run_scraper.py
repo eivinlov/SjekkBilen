@@ -35,10 +35,10 @@ def run_scraping() -> Optional[str]:
         logging.info(f"Link scraping completed in {elapsed_time:.2f} seconds")
         
         # Verify the output file exists
-        if os.path.exists('finn_links.json'):
-            return 'finn_links.json'
+        if os.path.exists('finn_links_test.json'):
+            return 'finn_links_test.json'
         else:
-            logging.error("finn_links.json was not created")
+            logging.error("finn_links_test.json was not created")
             return None
             
     except Exception as e:

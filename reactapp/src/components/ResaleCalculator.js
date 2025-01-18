@@ -11,6 +11,8 @@ import {
   Tooltip,
   Legend
 } from 'chart.js';
+import { useFilters } from '../contexts/FilterContext';
+import { FilterPanel } from './FilterPanel';
 
 ChartJS.register(
   CategoryScale,
@@ -34,8 +36,30 @@ function ResaleCalculator() {
     expectedMileagePerYear: 15000
   });
   const [chartData, setChartData] = useState(null);
+  const { primaryFilters, setFilterOptions } = useFilters();
 
   // Load initial data
+  useEffect(() => {
+    fetch(`${process.env.PUBLIC_URL}/finn_listings_with_metrics.json`)
+      .then(response => response.json())
+      .then(data => {
+        const listings = data.listings || [];
+        
+        // Extract unique values for filters
+        const models = [...new Set(listings.map(car => car.data['Modell']).filter(Boolean))];
+        const modelYears = [...new Set(listings.map(car => car.data['Modellår']).filter(Boolean))];
+        const fuelTypes = [...new Set(listings.map(car => car.data['Drivstoff']).filter(Boolean))];
+        const drivetrains = [...new Set(listings.map(car => car.data['Hjuldrift']).filter(Boolean))];
+
+        setFilterOptions({
+          models: models.sort(),
+          modelYears: modelYears.sort(),
+          fuelTypes: fuelTypes.sort(),
+          drivetrains: drivetrains.sort()
+        });
+      });
+  }, [setFilterOptions]);
+
   useEffect(() => {
     fetch(`${process.env.PUBLIC_URL}/finn_listings_with_metrics.json`)
       .then(response => response.json())
@@ -210,6 +234,7 @@ function ResaleCalculator() {
 
   return (
     <div>
+      <FilterPanel />
       <Box sx={{ width: '100%', mb: 4 }}>
         <Grid container spacing={2}>
           <Grid item xs={6}>

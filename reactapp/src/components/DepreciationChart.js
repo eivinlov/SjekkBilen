@@ -10,6 +10,8 @@ import {
   Legend
 } from 'chart.js';
 import { useEffect, useState } from 'react';
+import { useFilters } from '../contexts/FilterContext';
+import { FilterPanel } from './FilterPanel';
 
 ChartJS.register(
   CategoryScale,
@@ -51,9 +53,11 @@ function calculateTrendLine(points) {
 
 function DepreciationChart() {
   const [chartData, setChartData] = useState(null);
-  const [availableModels, setAvailableModels] = useState([]);
-  const [selectedModel, setSelectedModel] = useState('all');
-  const [allListings, setAllListings] = useState([]);
+  const [listings, setListings] = useState(null);
+  const { 
+    primaryFilters, 
+    setFilterOptions 
+  } = useFilters();
 
   useEffect(() => {
     fetch(`${process.env.PUBLIC_URL}/finn_listings_with_metrics.json`)
@@ -70,25 +74,39 @@ function DepreciationChart() {
           car.data['Modell']
         );
 
-        // Store all valid listings
-        setAllListings(validListings);
+        setListings(validListings);
 
-        // Get unique models
-        const models = [...new Set(validListings.map(car => 
-          `${car.data['Merke']} ${car.data['Modell']}`
-        ))].sort();
-        
-        setAvailableModels(models);
-        updateChartData(validListings, 'all');
+        // Extract unique values for filters
+        const models = [...new Set(validListings.map(car => car.data['Modell']).filter(Boolean))];
+        const modelYears = [...new Set(validListings.map(car => car.data['Modellår']).filter(Boolean))];
+        const fuelTypes = [...new Set(validListings.map(car => car.data['Drivstoff']).filter(Boolean))];
+        const drivetrains = [...new Set(validListings.map(car => car.data['Hjuldrift']).filter(Boolean))];
+
+        setFilterOptions({
+          models: models.sort(),
+          modelYears: modelYears.sort(),
+          fuelTypes: fuelTypes.sort(),
+          drivetrains: drivetrains.sort()
+        });
       });
-  }, []);
+  }, [setFilterOptions]);
 
-  const updateChartData = (listings, model) => {
-    const filteredListings = model === 'all' 
-      ? listings 
-      : listings.filter(car => `${car.data['Merke']} ${car.data['Modell']}` === model);
+  useEffect(() => {
+    if (listings) {
+      const filteredListings = listings.filter(car => {
+        return (primaryFilters.model === 'all' || car.data['Modell'] === primaryFilters.model) &&
+               (primaryFilters.modelYear === 'all' || car.data['Modellår'] === primaryFilters.modelYear) &&
+               (primaryFilters.fuelType === 'all' || car.data['Drivstoff'] === primaryFilters.fuelType) &&
+               (primaryFilters.drivetrain === 'all' || car.data['Hjuldrift'] === primaryFilters.drivetrain) &&
+               (!primaryFilters.showOnlySold || car.status === 'SOLGT');
+      });
 
-    const processedData = filteredListings.map(car => ({
+      updateChartData(filteredListings);
+    }
+  }, [listings, primaryFilters]);
+
+  const updateChartData = (listings) => {
+    const processedData = listings.map(car => ({
       age: new Date().getFullYear() - parseInt(car.data['Modellår']),
       price: parseInt(car.data['Pris eksl. omreg.'].replace(/[^0-9]/g, '')),
       url: car.url,
@@ -105,7 +123,7 @@ function DepreciationChart() {
       labels: processedData.map(d => d.age),
       datasets: [
         {
-          label: model === 'all' ? 'Verditap over tid (alle modeller)' : `Verditap over tid (${model})`,
+          label: primaryFilters.model === 'all' ? 'Verditap over tid (alle modeller)' : `Verditap over tid (${primaryFilters.model})`,
           data: processedData.map(d => ({
             x: d.age,
             y: d.price,
@@ -130,12 +148,6 @@ function DepreciationChart() {
         }
       ]
     });
-  };
-
-  const handleModelChange = (event) => {
-    const newModel = event.target.value;
-    setSelectedModel(newModel);
-    updateChartData(allListings, newModel);
   };
 
   const options = {
@@ -193,27 +205,7 @@ function DepreciationChart() {
 
   return (
     <div>
-      <div style={{ marginBottom: '20px', textAlign: 'center' }}>
-        <select 
-          value={selectedModel} 
-          onChange={handleModelChange}
-          style={{
-            padding: '8px',
-            fontSize: '16px',
-            borderRadius: '4px',
-            border: '1px solid #ccc',
-            width: '300px',
-            maxWidth: '100%'
-          }}
-        >
-          <option value="all">Alle modeller</option>
-          {availableModels.map(model => (
-            <option key={model} value={model}>
-              {model}
-            </option>
-          ))}
-        </select>
-      </div>
+      <FilterPanel />
       <Line options={options} data={chartData} />
     </div>
   );

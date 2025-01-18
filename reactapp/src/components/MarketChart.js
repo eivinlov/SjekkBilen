@@ -9,6 +9,8 @@ import {
   Legend
 } from 'chart.js';
 import { useEffect, useState } from 'react';
+import { useFilters } from '../contexts/FilterContext';
+import { FilterPanel } from './FilterPanel';
 
 ChartJS.register(
   CategoryScale,
@@ -21,58 +23,83 @@ ChartJS.register(
 
 function MarketChart() {
   const [chartData, setChartData] = useState(null);
+  const [listings, setListings] = useState(null);
+  const { 
+    primaryFilters, 
+    setFilterOptions 
+  } = useFilters();
 
   useEffect(() => {
     fetch(`${process.env.PUBLIC_URL}/finn_listings_with_metrics.json`)
       .then(response => response.json())
       .then(rawData => {
         const listings = rawData.listings || [];
-        console.log('Number of listings:', listings.length);
+        setListings(listings);
+
+        // Extract unique values for filters
+        const models = [...new Set(listings.map(car => car.data['Modell']).filter(Boolean))];
+        const modelYears = [...new Set(listings.map(car => car.data['Modellår']).filter(Boolean))];
+        const fuelTypes = [...new Set(listings.map(car => car.data['Drivstoff']).filter(Boolean))];
+        const drivetrains = [...new Set(listings.map(car => car.data['Hjuldrift']).filter(Boolean))];
+
+        setFilterOptions({
+          models: models.sort(),
+          modelYears: modelYears.sort(),
+          fuelTypes: fuelTypes.sort(),
+          drivetrains: drivetrains.sort()
+        });
+      });
+  }, [setFilterOptions]);
+
+  useEffect(() => {
+    if (listings) {
+      const filteredListings = listings.filter(car => {
+        return (primaryFilters.model === 'all' || car.data['Modell'] === primaryFilters.model) &&
+               (primaryFilters.modelYear === 'all' || car.data['Modellår'] === primaryFilters.modelYear) &&
+               (primaryFilters.fuelType === 'all' || car.data['Drivstoff'] === primaryFilters.fuelType) &&
+               (primaryFilters.drivetrain === 'all' || car.data['Hjuldrift'] === primaryFilters.drivetrain) &&
+               (!primaryFilters.showOnlySold || car.status === 'SOLGT');
+      });
+
+      updateChartData(filteredListings);
+    }
+  }, [listings, primaryFilters]);
+
+  const updateChartData = (listings) => {
+    const carsByYear = listings.reduce((acc, car) => {
+      if (car?.data?.['Modellår']) {
+        const year = car.data['Modellår'];
+        if (!acc[year]) {
+          acc[year] = {
+            count: 0,
+            cars: []
+          };
+        }
+        acc[year].count += 1;
         
-        const validListings = listings.filter(car => 
-          car && 
-          car.data && 
-          car.data['Pris eksl. omreg.'] &&
-          car.data['Modellår'] &&
-          car.data['Merke'] &&
-          car.data['Modell']
-        );
-        console.log('Valid listings:', validListings.length);
-        
-        const carsByYear = validListings.reduce((acc, car) => {
-          const year = car.data['Modellår'];
-          if (!acc[year]) {
-            acc[year] = {
-              count: 0,
-              cars: []
-            };
-          }
-          acc[year].count += 1;
+        if (car?.url && car?.data?.['Merke'] && car?.data?.['Modell'] && car?.data?.['Pris eksl. omreg.']) {
           acc[year].cars.push({
             url: car.url,
             title: `${car.data['Modellår']} ${car.data['Merke']} ${car.data['Modell']}`,
             price: parseInt(car.data['Pris eksl. omreg.'].replace(/[^0-9]/g, ''))
           });
-          return acc;
-        }, {});
+        }
+      }
+      return acc;
+    }, {});
 
-        const years = Object.keys(carsByYear).sort();
-        console.log('Years found:', years);
+    const years = Object.keys(carsByYear).sort();
 
-        setChartData({
-          labels: years,
-          datasets: [{
-            label: 'Antall biler per årsmodell',
-            data: years.map(year => carsByYear[year].count),
-            backgroundColor: 'rgba(53, 162, 235, 0.5)',
-            cars: years.map(year => carsByYear[year].cars)
-          }]
-        });
-      })
-      .catch(error => {
-        console.error('Error loading data:', error);
-      });
-  }, []);
+    setChartData({
+      labels: years,
+      datasets: [{
+        label: 'Antall biler per årsmodell',
+        data: years.map(year => carsByYear[year].count),
+        backgroundColor: 'rgba(53, 162, 235, 0.5)',
+        cars: years.map(year => carsByYear[year].cars)
+      }]
+    });
+  };
 
   const options = {
     responsive: true,
@@ -126,7 +153,12 @@ function MarketChart() {
 
   if (!chartData) return <div>Loading...</div>;
 
-  return <Bar options={options} data={chartData} />;
+  return (
+    <div>
+      <FilterPanel />
+      <Bar options={options} data={chartData} />
+    </div>
+  );
 }
 
 export default MarketChart; 

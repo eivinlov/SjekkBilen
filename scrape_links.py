@@ -90,7 +90,7 @@ def main():
         time.sleep(2)  # Extra pause between models
     
     # Save all links to JSON file
-    with open('finn_links.json', 'w', encoding='utf-8') as f:
+    with open('finn_links_test.json', 'w', encoding='utf-8') as f:
         json.dump(list(all_listing_links), f, indent=2, ensure_ascii=False)
     
     print(f"\nDone! Found a total of {len(all_listing_links)} unique listing links.")
