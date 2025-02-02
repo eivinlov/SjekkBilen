@@ -16,6 +16,15 @@ jobs:
         uses: actions/checkout@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
+          fetch-depth: 0
+
+      - name: Debug file structure
+        run: |
+          pwd
+          ls -la
+          echo "Checking reactapp/public directory:"
+          ls -la reactapp/public || echo "Directory not found"
 
       - name: Set up Python
         uses: actions/setup-python@v4
