@@ -7,7 +7,7 @@ from datetime import datetime
 import logging
 import time
 import random
-from enrich_listing import analyze_listing_content
+# from enrich_listing import analyze_listing_content
 
 def clean_spaces(value: str) -> str:
     """Replace weird unicode whitespace with a normal space and strip."""

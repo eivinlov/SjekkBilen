@@ -2,10 +2,18 @@ import json
 from bs4 import BeautifulSoup
 from openai import OpenAI
 import os
+from dotenv import load_dotenv
 
-# Initialize OpenAI client
-key='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'
-client = OpenAI(api_key=key)
+# Load environment variables from .env file
+load_dotenv()
+
+# Get the API key from the environment variable
+api_key = os.getenv('OPENAI_API_KEY')
+
+if not api_key:
+    raise ValueError("OPENAI_API_KEY not found in environment variables. Please set it in the .env file.")
+
+client = OpenAI(api_key=api_key)
 
 def get_listing_text_from_soup(soup: BeautifulSoup) -> str:
     """
