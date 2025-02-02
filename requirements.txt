@@ -9,3 +9,4 @@ fastapi
 sqlalchemy
 uvicorn
 python-dotenv
+openai
