@@ -1,4 +1,4 @@
-import json
+'''import json
 from bs4 import BeautifulSoup
 from openai import OpenAI
 import os
@@ -121,4 +121,4 @@ def analyze_listing_content(soup: BeautifulSoup) -> dict:
         
     except Exception as e:
         print(f"Error analyzing listing with OpenAI: {e}")
-        return None 
+        return None '''
