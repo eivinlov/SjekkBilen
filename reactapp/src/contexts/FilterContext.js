@@ -1,13 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-const FilterContext = createContext();
+export const FilterContext = createContext();
 
 // Define default values as constants
 const DEFAULT_SERVICE_HISTORIES = ['BRA', 'MIDDELS', 'DÅRLIG', 'UKJENT'];
 const DEFAULT_CONDITIONS = ['INGENTING Å BEMERKE', 'NOE Å BEMERKE', 'MYE Å BEMERKE'];
 const DEFAULT_SELLER_TYPES = ['PRIVAT', 'BILFORHANDLER'];
 
-export function FilterProvider({ children }) {
+export const FilterProvider = ({ children }) => {
     const [primaryFilters, setPrimaryFilters] = useState({
         model: 'all',
         modelYear: 'all',
@@ -22,23 +22,143 @@ export function FilterProvider({ children }) {
 
     const [comparisonFilters, setComparisonFilters] = useState([]);
     
-    // Initialize with default values for the enriched data filters
     const [filterOptions, setFilterOptions] = useState({
         models: [],
         modelYears: [],
         fuelTypes: [],
         drivetrains: [],
-        // Initialize with default values
         serviceHistories: DEFAULT_SERVICE_HISTORIES,
         conditions: DEFAULT_CONDITIONS,
         sellerTypes: DEFAULT_SELLER_TYPES,
-        transmissions: []
+        transmissions: [],
+        kilometerRange: {
+            min: 0,
+            max: 1000000,
+            label: 'Kilometerstand'
+        },
+        priceRange: {
+            min: 0,
+            max: 10000000,
+            label: 'Pris (NOK)'
+        }
     });
 
     const MAX_COMPARISONS = 3;
 
     const [kilometerRange, setKilometerRange] = useState([0, 1000000]);
     const [priceRange, setPriceRange] = useState([0, 10000000]);
+    const [currentRanges, setCurrentRanges] = useState({
+        kilometer: { min: 0, max: 1000000 },
+        price: { min: 0, max: 10000000 }
+    });
+
+    // Function to calculate ranges from filtered data
+    const calculateRangesFromData = (listings) => {
+        const kilometers = listings
+            .map(car => car.data && car.data['Kilometerstand'] ? 
+                parseInt(car.data['Kilometerstand'].replace(/[^0-9]/g, '')) : null)
+            .filter(Boolean);
+        const prices = listings
+            .map(car => car.data && car.data['Pris eksl. omreg.'] ? 
+                parseInt(car.data['Pris eksl. omreg.'].replace(/[^0-9]/g, '')) : null)
+            .filter(Boolean);
+
+        const minKilometer = kilometers.length > 0 ? Math.min(...kilometers) : 0;
+        const maxKilometer = kilometers.length > 0 ? Math.max(...kilometers) : 1000000;
+        const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+        const maxPrice = prices.length > 0 ? Math.max(...prices) : 10000000;
+
+        setCurrentRanges({
+            kilometer: { min: minKilometer, max: maxKilometer },
+            price: { min: minPrice, max: maxPrice }
+        });
+
+        // Reset the slider values to the new min/max
+        setKilometerRange([minKilometer, maxKilometer]);
+        setPriceRange([minPrice, maxPrice]);
+
+        return {
+            kilometerRange: {
+                min: minKilometer,
+                max: maxKilometer,
+                label: 'Kilometerstand'
+            },
+            priceRange: {
+                min: minPrice,
+                max: maxPrice,
+                label: 'Pris (NOK)'
+            }
+        };
+    };
+
+    // Load initial data and set up ranges
+    useEffect(() => {
+        fetch(`${process.env.PUBLIC_URL}/finn_listings.json`)
+            .then(response => response.json())
+            .then(rawData => {
+                const listings = rawData.listings || [];
+                
+                // Extract unique values for all filters
+                const models = [...new Set(listings.map(car => car.data['Modell']).filter(Boolean))];
+                const modelYears = [...new Set(listings.map(car => car.data['Modellår']).filter(Boolean))];
+                const fuelTypes = [...new Set(listings.map(car => car.data['Drivstoff']).filter(Boolean))];
+                const drivetrains = [...new Set(listings.map(car => car.data['Hjuldrift']).filter(Boolean))];
+                const transmissions = [...new Set(listings.map(car => car.data['Girkasse']).filter(Boolean))];
+
+                // Calculate initial ranges
+                const ranges = calculateRangesFromData(listings);
+                
+                setFilterOptions(prev => ({
+                    ...prev,
+                    models: models.sort(),
+                    modelYears: modelYears.sort(),
+                    fuelTypes: fuelTypes.sort(),
+                    drivetrains: drivetrains.sort(),
+                    transmissions: transmissions.sort(),
+                    ...ranges
+                }));
+            })
+            .catch(error => {
+                console.error('Error loading initial data:', error);
+            });
+    }, []); // Run only once on mount
+
+    // Update ranges when filters change
+    useEffect(() => {
+        fetch(`${process.env.PUBLIC_URL}/finn_listings.json`)
+            .then(response => response.json())
+            .then(rawData => {
+                const listings = rawData.listings || [];
+                
+                // Filter listings based on current filters
+                const filteredListings = listings.filter(car => {
+                    const kmValue = car.data['Kilometerstand'] ? 
+                        parseInt(car.data['Kilometerstand'].replace(/[^0-9]/g, '')) : null;
+                    const priceValue = car.data['Pris eksl. omreg.'] ? 
+                        parseInt(car.data['Pris eksl. omreg.'].replace(/[^0-9]/g, '')) : null;
+
+                    return (primaryFilters.model === 'all' || car.data['Modell'] === primaryFilters.model) &&
+                           (primaryFilters.modelYear === 'all' || car.data['Modellår'] === primaryFilters.modelYear) &&
+                           (primaryFilters.fuelType === 'all' || car.data['Drivstoff'] === primaryFilters.fuelType) &&
+                           (primaryFilters.drivetrain === 'all' || car.data['Hjuldrift'] === primaryFilters.drivetrain) &&
+                           (primaryFilters.transmission === 'all' || car.data['Girkasse'] === primaryFilters.transmission) &&
+                           kmValue !== null && priceValue !== null;
+                });
+
+                if (filteredListings.length > 0) {
+                    // Calculate ranges from filtered data
+                    const ranges = calculateRangesFromData(filteredListings);
+                    
+                    setFilterOptions(prev => ({
+                        ...prev,
+                        ...ranges
+                    }));
+                }
+            })
+            .catch(error => {
+                console.error('Error updating ranges:', error);
+            });
+    }, [primaryFilters]);
 
     // Shared filter handling functions
     const handlePrimaryFilterChange = (filterName, value) => {
@@ -58,7 +178,8 @@ export function FilterProvider({ children }) {
                 showOnlySold: false,
                 serviceHistory: 'all',
                 condition: 'all',
-                sellerType: 'all'
+                sellerType: 'all',
+                transmission: 'all'
             }]);
         }
     };
@@ -76,65 +197,22 @@ export function FilterProvider({ children }) {
     };
 
     const handleKilometerRangeChange = (event, newValue) => {
-        setKilometerRange(newValue);
+        // Ensure the new value is within the current filtered data range
+        const clampedValue = [
+            Math.max(currentRanges.kilometer.min, newValue[0]),
+            Math.min(currentRanges.kilometer.max, newValue[1])
+        ];
+        setKilometerRange(clampedValue);
     };
 
     const handlePriceRangeChange = (event, newValue) => {
-        setPriceRange(newValue);
+        // Ensure the new value is within the current filtered data range
+        const clampedValue = [
+            Math.max(currentRanges.price.min, newValue[0]),
+            Math.min(currentRanges.price.max, newValue[1])
+        ];
+        setPriceRange(clampedValue);
     };
-
-    // Update the setFilterOptions usage in PriceChart's useEffect
-    useEffect(() => {
-        fetch(`${process.env.PUBLIC_URL}/finn_listings.json`)
-            .then(response => response.json())
-            .then(rawData => {
-                const listings = rawData.listings || [];
-                
-                // Extract unique values for all filters
-                const models = [...new Set(listings.map(car => car.data['Modell']).filter(Boolean))];
-                const modelYears = [...new Set(listings.map(car => car.data['Modellår']).filter(Boolean))];
-                const fuelTypes = [...new Set(listings.map(car => car.data['Drivstoff']).filter(Boolean))];
-                const drivetrains = [...new Set(listings.map(car => car.data['Hjuldrift']).filter(Boolean))];
-                const serviceHistories = [...new Set(listings.map(car => car.metadata?.service_historie).filter(Boolean))];
-                const conditions = [...new Set(listings.map(car => car.metadata?.Bilens_tilstand).filter(Boolean))];
-                const sellerTypes = [...new Set(listings.map(car => car.metadata?.Selger).filter(Boolean))];
-                const transmissions = [...new Set(listings.map(car => car.data['Girkasse']).filter(Boolean))];
-
-                setFilterOptions(prev => {
-                    // Calculate min and max values for kilometers and price with error handling
-                    const kilometers = listings
-                        .map(car => car.data && car.data['Kilometerstand'] ? parseInt(car.data['Kilometerstand'].replace(/[^0-9]/g, '')) : null)
-                        .filter(Boolean);
-                    const prices = listings
-                        .map(car => car.data && car.data['Pris eksl. omreg.'] ? parseInt(car.data['Pris eksl. omreg.'].replace(/[^0-9]/g, '')) : null)
-                        .filter(Boolean);
-
-                    const minKilometer = kilometers.length > 0 ? Math.min(...kilometers) : 0;
-                    const maxKilometer = kilometers.length > 0 ? Math.max(...kilometers) : 1000000;
-                    const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
-                    const maxPrice = prices.length > 0 ? Math.max(...prices) : 10000000;
-
-                    setKilometerRange([minKilometer, maxKilometer]);
-                    setPriceRange([minPrice, maxPrice]);
-
-                    return {
-                        ...prev,
-                        models: models.sort(),
-                        modelYears: modelYears.sort(),
-                        fuelTypes: fuelTypes.sort(),
-                        drivetrains: drivetrains.sort(),
-                        serviceHistories: serviceHistories.length > 0 ? serviceHistories.sort() : prev.serviceHistories,
-                        conditions: conditions.length > 0 ? conditions.sort() : prev.conditions,
-                        sellerTypes: sellerTypes.length > 0 ? sellerTypes.sort() : prev.sellerTypes,
-                        transmissions: transmissions.length > 0 ? transmissions.sort() : prev.transmissions
-                    };
-                });
-            })
-            .catch(error => {
-                console.error('Error loading filter options:', error);
-                // Keep the default values in case of error
-            });
-    }, []);
 
     return (
         <FilterContext.Provider value={{
@@ -155,7 +233,7 @@ export function FilterProvider({ children }) {
             {children}
         </FilterContext.Provider>
     );
-}
+};
 
 export const useFilters = () => {
     const context = useContext(FilterContext);

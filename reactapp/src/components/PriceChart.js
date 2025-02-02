@@ -10,6 +10,8 @@ import {
 import { useEffect, useState, useCallback } from 'react';
 import { useFilters } from '../contexts/FilterContext';
 import { FilterPanel } from './FilterPanel';
+import { Box } from '@mui/material';
+import MetricsSummaryTable from './MetricsSummaryTable';
 
 ChartJS.register(LinearScale, PointElement, LineElement, Tooltip, Legend);
 
@@ -459,7 +461,10 @@ function PriceChart() {
   return (
     <div>
       <FilterPanel />
-      {chartData && <Scatter options={chartOptions} data={chartData} />}
+      <Box sx={{ mb: 4 }}>
+        <Scatter options={chartOptions} data={chartData} />
+      </Box>
+      <MetricsSummaryTable listings={listings} />
     </div>
   );
 }

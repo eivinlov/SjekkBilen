@@ -1,3 +1,4 @@
+import React, { useState, useEffect, useCallback } from 'react';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -9,7 +10,6 @@ import {
   Tooltip,
   Legend
 } from 'chart.js';
-import { useEffect, useState, useMemo, useCallback } from 'react';
 import Grid2 from '@mui/material/Grid2';
 import { Select, MenuItem, Typography, Box, TextField } from '@mui/material';
 import { useFilters } from '../contexts/FilterContext';
@@ -25,7 +25,7 @@ ChartJS.register(
   Legend
 );
 
-function PricePerYearChart() {
+const PricePerYearChart = () => {
   const [chartData, setChartData] = useState(null);
   const [listings, setListings] = useState(null);
   const [selectedMetric, setSelectedMetric] = useState('price_per_10k');
@@ -67,11 +67,11 @@ function PricePerYearChart() {
 
       updateChart(filteredListings);
     }
-  }, [listings, primaryFilters, selectedMetric]);
+  }, [listings, primaryFilters, selectedMetric, updateChart]);
 
-  const calculateValueScore = (price, kilometers) => {
+  const calculateValueScore = useCallback((price, kilometers) => {
     return (1 / price) * (1 / kilometers) * 1_000_000_000;
-  };
+  }, []);
 
   const updateChart = useCallback((listings) => {
     const validListings = listings.filter(listing => 

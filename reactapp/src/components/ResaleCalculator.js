@@ -1,5 +1,5 @@
+import React, { useState, useEffect, useCallback, useContext } from 'react';
 import { Line } from 'react-chartjs-2';
-import { useState, useEffect, useCallback } from 'react';
 import { Grid, Select, MenuItem, Typography, Box, TextField } from '@mui/material';
 import {
   Chart as ChartJS,
@@ -11,7 +11,7 @@ import {
   Tooltip,
   Legend
 } from 'chart.js';
-import { useFilters } from '../contexts/FilterContext';
+import { FilterContext } from '../contexts/FilterContext';
 import { FilterPanel } from './FilterPanel';
 
 ChartJS.register(
@@ -24,7 +24,8 @@ ChartJS.register(
   Legend
 );
 
-function ResaleCalculator() {
+const ResaleCalculator = () => {
+  const { setFilterOptions } = useContext(FilterContext);
   const [models, setModels] = useState([]);
   const [fuelTypes, setFuelTypes] = useState([]);
   const [inputData, setInputData] = useState({
@@ -36,7 +37,6 @@ function ResaleCalculator() {
     expectedMileagePerYear: 15000
   });
   const [chartData, setChartData] = useState(null);
-  const { primaryFilters, setFilterOptions } = useFilters();
 
   // Load initial data
   useEffect(() => {

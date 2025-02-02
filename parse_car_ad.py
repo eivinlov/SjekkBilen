@@ -140,17 +140,28 @@ def main(force_reparse=True):  # Always reparse everything
     # Process all listings
     updated_results = []
     for link in finn_links:
-        print(f"Processing: {link}")
+        print(f"\nProcessing: {link}")
         listing = parse_finn_listing(link)
     
         if listing:
             # Handle status changes
             existing_listing = existing_listings.get(link)
             if existing_listing:
+                print(f"Found existing listing:")
+                print(f"  Current status: {listing['status']}")
+                print(f"  Previous status: {existing_listing.get('status', 'active')}")
+                print(f"  Last checked: {existing_listing.get('last_checked', 'unknown')}")
+                
+                if existing_listing.get("status") == "unknown":
+                    print(f"Skipping status update for previously unknown listing: {link}")
+                    continue
+                    
                 if listing["status"] != existing_listing.get("status", "active"):
                     print(f"Status changed for {link}: {existing_listing.get('status', 'active')} -> {listing['status']}")
                     if listing["status"] == "sold":
                         listing["sold_date"] = datetime.now().isoformat()
+            else:
+                print(f"New listing found with status: {listing['status']}")
             
             if listing["status"] != "inactive":  # Don't add inactive listings
                 updated_results.append(listing)
@@ -158,12 +169,16 @@ def main(force_reparse=True):  # Always reparse everything
         else:
             print(f"Skipped inactive listing: {link}")
 
+    print("\nChecking for listings that disappeared:")
     # Mark remaining active listings as unknown
     current_urls = set(finn_links)
     for url, item in existing_listings.items():
         if url not in current_urls and item.get("status") == "active":
+            print(f"Listing disappeared: {url}")
+            print(f"  Previous status: {item.get('status')}")
+            print(f"  Last checked: {item.get('last_checked')}")
             item["status"] = "unknown"
-            item["last_updated"] = datetime.now().isoformat()
+            item["last_checked"] = datetime.now().isoformat()
             updated_results.append(item)
             print(f"Marked as unknown: {url}")
     
