@@ -1,6 +1,5 @@
 '''import json
 from bs4 import BeautifulSoup
-from openai import OpenAI
 import os
 from dotenv import load_dotenv
 
