@@ -40,7 +40,7 @@ function ResaleCalculator() {
 
   // Load initial data
   useEffect(() => {
-    fetch(`${process.env.PUBLIC_URL}/finn_listings_with_metrics.json`)
+    fetch(`${process.env.PUBLIC_URL}/finn_listings.json`)
       .then(response => response.json())
       .then(data => {
         const listings = data.listings || [];
@@ -61,7 +61,7 @@ function ResaleCalculator() {
   }, [setFilterOptions]);
 
   useEffect(() => {
-    fetch(`${process.env.PUBLIC_URL}/finn_listings_with_metrics.json`)
+    fetch(`${process.env.PUBLIC_URL}/finn_listings.json`)
       .then(response => response.json())
       .then(data => {
         const listings = data.listings || [];
@@ -145,7 +145,7 @@ function ResaleCalculator() {
       return;
     }
 
-    fetch(`${process.env.PUBLIC_URL}/finn_listings_with_metrics.json`)
+    fetch(`${process.env.PUBLIC_URL}/finn_listings.json`)
       .then(response => response.json())
       .then(data => {
         const depreciation = calculateDepreciation(data.listings || [], inputs.model, inputs.fuelType);

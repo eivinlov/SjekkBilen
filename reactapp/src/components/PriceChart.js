@@ -316,10 +316,10 @@ function PriceChart() {
   }, [calculateTrendLine, primaryFilters, comparisonFilters, listings, kilometerRange, priceRange]);
 
   useEffect(() => {
-    fetch(`${process.env.PUBLIC_URL}/finn_listings_with_metrics.json`)
+    fetch(`${process.env.PUBLIC_URL}/finn_listings.json`)
       .then(response => response.json())
-      .then(rawData => {
-        const listings = rawData.listings || [];
+      .then(listings => {
+        // listings is now directly an array
         console.log('Number of listings:', listings.length);
 
         const validListings = listings.filter(car => {
@@ -438,6 +438,20 @@ function PriceChart() {
 
   const [chartOptions, setOptions] = useState(options);
 
+  useEffect(() => {
+    setOptions(prev => ({
+      ...prev,
+      onClick: (event, elements) => {
+        if (elements.length > 0 && chartData && chartData.datasets) {
+          const dataPoint = chartData.datasets[elements[0].datasetIndex].data[elements[0].index];
+          if (dataPoint && dataPoint.url) {
+            window.open(dataPoint.url, '_blank');
+          }
+        }
+      }
+    }));
+  }, [chartData]);
+
   if (!chartData) {
     return <div>Loading...</div>;
   }
@@ -445,7 +459,7 @@ function PriceChart() {
   return (
     <div>
       <FilterPanel />
-      <Scatter options={chartOptions} data={chartData} />
+      {chartData && <Scatter options={chartOptions} data={chartData} />}
     </div>
   );
 }
