@@ -73,17 +73,6 @@ def main():
     start_time = time.time()
     logging.info(f"Starting scraping run at {datetime.now().isoformat()}")
     
-    # Create backup of existing database if it exists
-    if os.path.exists('finn_listings.json'):
-        backup_name = f"finn_listings_backup_{int(time.time())}.json"
-        try:
-            with open('finn_listings.json', 'r') as src, open(backup_name, 'w') as dst:
-                dst.write(src.read())
-            logging.info(f"Created backup: {backup_name}")
-        except Exception as e:
-            logging.error(f"Failed to create backup: {e}")
-            return
-    
     # Step 1: Run the scraping process
     links_file = run_scraping()
     if not links_file:

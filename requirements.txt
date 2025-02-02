@@ -8,3 +8,4 @@ json5
 fastapi
 sqlalchemy
 uvicorn
+python-dotenv

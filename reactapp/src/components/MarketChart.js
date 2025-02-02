@@ -30,7 +30,7 @@ function MarketChart() {
   } = useFilters();
 
   useEffect(() => {
-    fetch(`${process.env.PUBLIC_URL}/finn_listings_with_metrics.json`)
+    fetch(`${process.env.PUBLIC_URL}/finn_listings.json`)
       .then(response => response.json())
       .then(rawData => {
         const listings = rawData.listings || [];

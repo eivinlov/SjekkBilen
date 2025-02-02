@@ -18,9 +18,6 @@ def parse_finn_listing(url: str) -> dict:
     Fetch the HTML of a Finn.no listing and parse both data and metadata.
     """
     print(f"Fetching data from: {url}")
-    wait_time = random.uniform(0.5, 1)
-    print(f"Waiting {wait_time:.2f} seconds...")
-    time.sleep(wait_time)
 
     try:
         response = requests.get(url)
@@ -49,8 +46,8 @@ def parse_finn_listing(url: str) -> dict:
         status = check_listing_status(soup)
         
         # Get enriched metadata using the same soup object
-        metadata = analyze_listing_content(soup)
-        if not metadata:
+        # metadata = analyze_listing_content(soup)
+        '''if not metadata:
             metadata = {
                 "service_historie": "-",
                 "Slitedeler_som_bør_byttes": "-",
@@ -59,13 +56,13 @@ def parse_finn_listing(url: str) -> dict:
                 "Spesifikke_feil": [],  # Empty list for no specific issues
                 "Selger": "-",
                 "Other_notes": "-"
-            }
+            }'''
 
         # Return complete listing object
         return {
             "url": url,
             "data": listing_data,
-            "metadata": metadata,
+            # "metadata": metadata,
             "status": status,
             "last_checked": datetime.now().isoformat()
         }
@@ -78,8 +75,8 @@ def parse_car_ad(html_content, url):
     soup = BeautifulSoup(html_content, 'html.parser')
     status = check_listing_status(soup)
     
-    if status == 'DEAKTIVERT':
-        return {'status': 'deactivated', 'url': url}
+    if status == 'INAKTIV':
+        return {'status': 'inactive', 'url': url}
     
     data = {}
     keys = soup.find_all('dt', class_='u-t4')
@@ -99,7 +96,7 @@ def parse_car_ad(html_content, url):
 def check_listing_status(soup):
     """
     Check the status of a Finn.no listing
-    Returns: 'SOLGT', 'DEAKTIVERT', or 'active'
+    Returns: 'SOLGT', 'INAKTIV', or 'active'
     """
     status_badge = soup.find('div', class_='bg-[--w-color-badge-warning-background]')
     
@@ -107,8 +104,8 @@ def check_listing_status(soup):
         text = status_badge.get_text(strip=True).upper()
         if 'SOLGT' in text:
             return 'SOLGT'
-        elif 'DEAKTIVERT' in text:
-            return 'DEAKTIVERT'
+        elif 'INAKTIV' in text:
+            return 'INAKTIV'
     
     return 'active'
 
@@ -128,7 +125,7 @@ def main(force_reparse=True):  # Always reparse everything
         logging.error("Error decoding finn_links_test.json")
         raise
 
-    filename = "finn_listings.json"
+    filename = "reactapp/public/finn_listings.json"
 
     try:
         # Load existing database
@@ -156,11 +153,11 @@ def main(force_reparse=True):  # Always reparse everything
                     if listing["status"] == "sold":
                         listing["sold_date"] = datetime.now().isoformat()
             
-            if listing["status"] != "deactivated":  # Don't add deactivated listings
+            if listing["status"] != "inactive":  # Don't add inactive listings
                 updated_results.append(listing)
                 print(f"{'Updated' if existing_listing else 'Added'} listing: {link} (Status: {listing['status']})")
         else:
-            print(f"Skipped deactivated listing: {link}")
+            print(f"Skipped inactive listing: {link}")
 
     # Mark remaining active listings as unknown
     current_urls = set(finn_links)
