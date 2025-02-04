@@ -85,16 +85,23 @@ function PriceChart() {
       const b = det_b / det_main;
       const c = det_c / det_main;
 
-      // Generate points for the trend line
-      const trendPoints = [];
+      // Calculate average price loss per km
+      // The derivative of the quadratic function gives us the instantaneous rate of change
+      // At any point x, the rate of change is: 2ax + b
       const minX = Math.min(...X);
       const maxX = Math.max(...X);
+      const avgX = (minX + maxX) / 2;
+      const avgPriceLossPerKm = -(2 * a * avgX + b);  // Negative because we want loss (positive number)
+
+      // Generate points for the trend line
+      const trendPoints = [];
       const step = (maxX - minX) / 100;
 
       for (let x = minX; x <= maxX; x += step) {
         trendPoints.push({
           x: x,
-          y: a * x * x + b * x + c
+          y: a * x * x + b * x + c,
+          priceLossPerKm: avgPriceLossPerKm
         });
       }
 
@@ -397,6 +404,14 @@ function PriceChart() {
         callbacks: {
           label: (context) => {
             const point = context.raw;
+            if (point.priceLossPerKm !== undefined) {
+              // This is a trend line point
+              return [
+                `Estimert verdi: ${Math.round(point.y).toLocaleString()} kr`,
+                `Gjennomsnittlig verditap per km: ${Math.round(point.priceLossPerKm).toLocaleString()} kr`
+              ];
+            }
+            // This is a data point
             return [
               `${point.title}`,
               `Pris: ${point.y.toLocaleString()} kr`,
@@ -409,7 +424,7 @@ function PriceChart() {
         }
       },
       legend: {
-        position: 'top',
+        position: 'top'
       }
     },
     scales: {
@@ -435,12 +450,22 @@ function PriceChart() {
           callback: (value) => value.toLocaleString()
         }
       }
+    },
+    onClick: (event, elements) => {
+      if (elements.length > 0 && chartData && chartData.datasets) {
+        const dataPoint = chartData.datasets[elements[0].datasetIndex].data[elements[0].index];
+        if (dataPoint && dataPoint.url) {
+          window.open(dataPoint.url, '_blank');
+        }
+      }
     }
   };
 
   const [chartOptions, setOptions] = useState(options);
 
   useEffect(() => {
+    if (!chartData) return;
+    
     setOptions(prev => ({
       ...prev,
       onClick: (event, elements) => {

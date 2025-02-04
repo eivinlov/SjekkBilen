@@ -17,7 +17,8 @@ export const FilterProvider = ({ children }) => {
         serviceHistory: 'all',
         condition: 'all',
         sellerType: 'all',
-        transmission: 'all'
+        transmission: 'all',
+        batteryCapacity: 'all'
     });
 
     const [comparisonFilters, setComparisonFilters] = useState([]);
@@ -31,6 +32,7 @@ export const FilterProvider = ({ children }) => {
         conditions: DEFAULT_CONDITIONS,
         sellerTypes: DEFAULT_SELLER_TYPES,
         transmissions: [],
+        batteryCapacities: [],
         kilometerRange: {
             min: 0,
             max: 1000000,
@@ -104,19 +106,39 @@ export const FilterProvider = ({ children }) => {
                 const fuelTypes = [...new Set(listings.map(car => car.data['Drivstoff']).filter(Boolean))];
                 const drivetrains = [...new Set(listings.map(car => car.data['Hjuldrift']).filter(Boolean))];
                 const transmissions = [...new Set(listings.map(car => car.data['Girkasse']).filter(Boolean))];
-
+                
+                // Extract battery capacities with debug logging
+                console.log('Extracting battery capacities from listings:', listings.length);
+                const batteryCapacities = [...new Set(listings
+                    .map(car => {
+                        const capacity = car.data?.['Batterikapasitet'];
+                        if (capacity) {
+                            console.log('Found battery capacity:', capacity);
+                        }
+                        return capacity || 'Ikke oppgitt';
+                    })
+                    .filter(Boolean))];
+                console.log('Extracted unique battery capacities:', batteryCapacities);
+                
                 // Calculate initial ranges
                 const ranges = calculateRangesFromData(listings);
                 
-                setFilterOptions(prev => ({
-                    ...prev,
+                const updatedOptions = {
                     models: models.sort(),
                     modelYears: modelYears.sort(),
                     fuelTypes: fuelTypes.sort(),
                     drivetrains: drivetrains.sort(),
                     transmissions: transmissions.sort(),
-                    ...ranges
-                }));
+                    batteryCapacities: batteryCapacities.sort(),
+                    serviceHistories: DEFAULT_SERVICE_HISTORIES,
+                    conditions: DEFAULT_CONDITIONS,
+                    sellerTypes: DEFAULT_SELLER_TYPES,
+                    kilometerRange: ranges.kilometerRange,
+                    priceRange: ranges.priceRange
+                };
+
+                console.log('Setting filter options with battery capacities:', updatedOptions.batteryCapacities);
+                setFilterOptions(updatedOptions);
             })
             .catch(error => {
                 console.error('Error loading initial data:', error);
@@ -142,13 +164,14 @@ export const FilterProvider = ({ children }) => {
                            (primaryFilters.fuelType === 'all' || car.data['Drivstoff'] === primaryFilters.fuelType) &&
                            (primaryFilters.drivetrain === 'all' || car.data['Hjuldrift'] === primaryFilters.drivetrain) &&
                            (primaryFilters.transmission === 'all' || car.data['Girkasse'] === primaryFilters.transmission) &&
+                           (primaryFilters.batteryCapacity === 'all' || car.data['Batterikapasitet'] === primaryFilters.batteryCapacity) &&
                            kmValue !== null && priceValue !== null;
                 });
 
                 if (filteredListings.length > 0) {
                     // Calculate ranges from filtered data
                     const ranges = calculateRangesFromData(filteredListings);
-                    
+
                     setFilterOptions(prev => ({
                         ...prev,
                         ...ranges
@@ -169,17 +192,17 @@ export const FilterProvider = ({ children }) => {
     };
 
     const addComparison = () => {
-        if (comparisonFilters.length < MAX_COMPARISONS && filterOptions.models.length > 0) {
-            setComparisonFilters(prev => [...prev, {
-                model: filterOptions.models[0] || '',
+        if (comparisonFilters.length < MAX_COMPARISONS) {
+            setComparisonFilters([...comparisonFilters, {
+                model: 'all',
                 modelYear: 'all',
                 fuelType: 'all',
                 drivetrain: 'all',
-                showOnlySold: false,
                 serviceHistory: 'all',
                 condition: 'all',
                 sellerType: 'all',
-                transmission: 'all'
+                transmission: 'all',
+                batteryCapacity: 'all'
             }]);
         }
     };

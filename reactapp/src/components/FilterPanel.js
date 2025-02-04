@@ -26,7 +26,8 @@ export function FilterPanel() {
         serviceHistories = ['BRA', 'MIDDELS', 'DÅRLIG', 'UKJENT'],
         conditions = ['INGENTING Å BEMERKE', 'NOE Å BEMERKE', 'MYE Å BEMERKE'],
         sellerTypes = ['PRIVAT', 'BILFORHANDLER'],
-        transmissions = []
+        transmissions = [],
+        batteryCapacities = []
     } = filterOptions;
 
     return (
@@ -182,18 +183,35 @@ export function FilterPanel() {
                     </Select>
                 </Grid2>
 
+                <Grid2 xs={12} sm={6} md={3}>
+                    <Typography variant="subtitle2" gutterBottom>
+                        Batterikapasitet
+                    </Typography>
+                    <Select
+                        fullWidth
+                        value={primaryFilters.batteryCapacity}
+                        onChange={(e) => handlePrimaryFilterChange('batteryCapacity', e.target.value)}
+                        size="small"
+                    >
+                        <MenuItem value="all">Alle</MenuItem>
+                        {batteryCapacities.map(capacity => (
+                            <MenuItem key={capacity} value={capacity}>{capacity}</MenuItem>
+                        ))}
+                    </Select>
+                </Grid2>
+
                 {/* Kilometer Range Slider */}
                 <Grid2 xs={12}>
                     <Typography variant="subtitle2" gutterBottom>
-                        Kilometer Range
+                        Kilometerstand
                     </Typography>
                     <Slider
                         value={kilometerRange}
                         onChange={handleKilometerRangeChange}
-                        min={0}
-                        max={400000}
-                        step={1000}
                         valueLabelDisplay="auto"
+                        min={filterOptions.kilometerRange?.min || 0}
+                        max={filterOptions.kilometerRange?.max || 1000000}
+                        valueLabelFormat={value => `${value.toLocaleString()} km`}
                     />
                 </Grid2>
 
@@ -384,6 +402,35 @@ export function FilterPanel() {
                                     <MenuItem key={type} value={type}>{type}</MenuItem>
                                 ))}
                             </Select>
+                        </Grid2>
+
+                        <Grid2 xs={12} sm={6} md={3}>
+                            <Typography variant="subtitle2" gutterBottom>
+                                Batterikapasitet
+                            </Typography>
+                            <Select
+                                fullWidth
+                                value={comparison.batteryCapacity}
+                                onChange={(e) => handleComparisonFilterChange(index, 'batteryCapacity', e.target.value)}
+                                size="small"
+                            >
+                                <MenuItem value="all">Alle</MenuItem>
+                                {batteryCapacities.map(capacity => (
+                                    <MenuItem key={capacity} value={capacity}>{capacity}</MenuItem>
+                                ))}
+                            </Select>
+                        </Grid2>
+
+                        {/* Remove Comparison Button */}
+                        <Grid2 xs={12}>
+                            <Button 
+                                variant="outlined" 
+                                color="error" 
+                                onClick={() => removeComparison(index)}
+                                sx={{ mt: 2 }}
+                            >
+                                Fjern sammenligning
+                            </Button>
                         </Grid2>
                     </Grid2>
                 ))}
