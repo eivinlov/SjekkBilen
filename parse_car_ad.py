@@ -137,65 +137,113 @@ def main(force_reparse=True):  # Always reparse everything
     # Create a map of existing listings for easy lookup
     existing_listings = {item["url"]: item for item in existing_data}
     
-    # Process all listings
-    updated_results = []
+    # Keep track of processed URLs to know which ones were updated
+    processed_urls = set()
+    
+    # Process all listings from finn_links
     for link in finn_links:
         print(f"\nProcessing: {link}")
+        processed_urls.add(link)
+        
+        # Get the existing listing if available
+        existing_listing = existing_listings.get(link, None)
+        
+        # Try to parse the listing
         listing = parse_finn_listing(link)
     
         if listing:
-            # Handle status changes
-            existing_listing = existing_listings.get(link)
-            if existing_listing:
+            # Initialize history array if it doesn't exist
+            if not existing_listing:
+                print(f"New listing found with status: {listing['status']}")
+                listing["status_history"] = [{
+                    "status": listing["status"],
+                    "date": listing["last_checked"]
+                }]
+            else:
                 print(f"Found existing listing:")
                 print(f"  Current status: {listing['status']}")
                 print(f"  Previous status: {existing_listing.get('status', 'active')}")
                 print(f"  Last checked: {existing_listing.get('last_checked', 'unknown')}")
                 
-                if existing_listing.get("status") == "unknown":
-                    print(f"Skipping status update for previously unknown listing: {link}")
-                    continue
-                    
+                # Keep history from the existing listing
+                listing["status_history"] = existing_listing.get("status_history", [])
+                
+                # Add new status to history if changed
                 if listing["status"] != existing_listing.get("status", "active"):
                     print(f"Status changed for {link}: {existing_listing.get('status', 'active')} -> {listing['status']}")
+                    listing["status_history"].append({
+                        "status": listing["status"],
+                        "date": listing["last_checked"]
+                    })
                     if listing["status"] == "sold":
                         listing["sold_date"] = datetime.now().isoformat()
-            else:
-                print(f"New listing found with status: {listing['status']}")
+                
+                # Preserve any additional fields from the existing listing that aren't in the new one
+                for key, value in existing_listing.items():
+                    if key not in listing and key != "data" and key != "status":
+                        listing[key] = value
             
-            if listing["status"] != "inactive":  # Don't add inactive listings
-                updated_results.append(listing)
-                print(f"{'Updated' if existing_listing else 'Added'} listing: {link} (Status: {listing['status']})")
+            # Update the existing_listings map with the new/updated listing
+            existing_listings[link] = listing
+            print(f"{'Updated' if existing_listing else 'Added'} listing: {link} (Status: {listing['status']})")
         else:
-            print(f"Skipped inactive listing: {link}")
+            # If parsing failed, keep the existing data
+            if existing_listing:
+                print(f"Parsing failed for {link}, keeping existing data")
+                # Update last_checked timestamp
+                existing_listing["last_checked"] = datetime.now().isoformat()
+                existing_listings[link] = existing_listing
+            else:
+                print(f"Parsing failed for new listing: {link}")
+                # Create a placeholder entry for the failed listing
+                existing_listings[link] = {
+                    "url": link,
+                    "status": "parse_error",
+                    "last_checked": datetime.now().isoformat(),
+                    "status_history": [{
+                        "status": "parse_error",
+                        "date": datetime.now().isoformat()
+                    }]
+                }
 
-    print("\nChecking for listings that disappeared:")
-    # Mark remaining active listings as unknown
-    current_urls = set(finn_links)
+    print("\nChecking for listings not in current source:")
+    # Update listings that weren't in the current batch
     for url, item in existing_listings.items():
-        if url not in current_urls and item.get("status") == "active":
-            print(f"Listing disappeared: {url}")
-            print(f"  Previous status: {item.get('status')}")
-            print(f"  Last checked: {item.get('last_checked')}")
-            item["status"] = "unknown"
-            item["last_checked"] = datetime.now().isoformat()
-            updated_results.append(item)
-            print(f"Marked as unknown: {url}")
+        if url not in processed_urls:
+            if item.get("status") == "active":
+                print(f"Active listing disappeared: {url}")
+                item["previous_status"] = item["status"]
+                item["status"] = "unknown"
+                item["last_checked"] = datetime.now().isoformat()
+                
+                # Add status change to history
+                if "status_history" not in item:
+                    item["status_history"] = []
+                item["status_history"].append({
+                    "status": "unknown",
+                    "date": datetime.now().isoformat()
+                })
+                print(f"Marked as unknown: {url}")
+            else:
+                print(f"Keeping non-active listing that's not in current source: {url}")
+    
+    # Convert the map back to a list for saving
+    all_listings = list(existing_listings.values())
     
     # Save everything to JSON file
     with open(filename, "w", encoding="utf-8") as f:
-        json.dump(updated_results, f, ensure_ascii=False, indent=4)
+        json.dump(all_listings, f, ensure_ascii=False, indent=4)
     
     # Print status breakdown
     statuses = {}
-    for item in updated_results:
+    for item in all_listings:
         status = item.get('status', 'active')
         statuses[status] = statuses.get(status, 0) + 1
     
     print("\nStatus breakdown:")
     for status, count in statuses.items():
         print(f"{status}: {count}")
-    print(f"\nTotal listings in database: {len(updated_results)}")
+    print(f"\nTotal listings in database: {len(all_listings)}")
 
 if __name__ == "__main__":
     main()
